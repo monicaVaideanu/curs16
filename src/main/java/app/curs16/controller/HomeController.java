@@ -2,56 +2,60 @@ package app.curs16.controller;
 
 import app.curs16.models.Login;
 import app.curs16.models.User;
+import app.curs16.services.AuthentificationService;
+import app.curs16.services.UserService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
 public class HomeController {
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private AuthentificationService authService;
 
-    private final List<User> users = new ArrayList<>();
-    private final List<Login> usersLoggedIn = new ArrayList<>();
+    public HomeController(UserService userService, AuthentificationService authService) {
+        this.userService = userService;
+        this.authService = authService;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<String> handleRegister(@Valid @RequestBody User user) {
-        if (users.stream().anyMatch(user1 -> user1.getEmail().equals(user.getEmail()))) {
+        if (!userService.addUser(user)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("User already exists.");
         }
-        users.add(user);
         return ResponseEntity.status(HttpStatus.CREATED).body("User added.");
     }
 
     @PostMapping("/login")
     public ResponseEntity<String> loginUser(@RequestBody Login loginBody) {
-        if (users.stream().noneMatch(u -> u.getEmail().equals(loginBody.getEmail())
-                && u.getPassword().equals(loginBody.getPassword()))) {
+        if (userService.findUserByEmailAndPassword(loginBody.getEmail(), loginBody.getPassword()).isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("This user was not found.");
         }
-        if (usersLoggedIn.stream().anyMatch(u -> u.getEmail().equals(loginBody.getEmail())
-                && u.getPassword().equals(loginBody.getPassword()))) {
+        if (authService.isLoggedIn(loginBody.getEmail())) {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body("This user is already logged in.");
         }
-        usersLoggedIn.add(loginBody);
+        authService.addLoggedInUser(loginBody);
         return ResponseEntity.status(HttpStatus.OK).body("Logged in successfully.");
     }
 
     @PostMapping("/logout/{email}")
-    public ResponseEntity<String> logoutUser(@PathVariable String email){
-        if(users.stream().noneMatch(u -> u.getEmail().equals(email))){
+    public ResponseEntity<String> logoutUser(@PathVariable String email) {
+        if (!userService.userExists(email)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("This user was not found.");
         }
-        if(usersLoggedIn.stream().noneMatch(u -> u.getEmail().equals(email))){
+        if (!authService.isLoggedIn(email)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("This user was not logged in.");
         }
-        usersLoggedIn.removeIf(u->u.getEmail().equals(email));
+        authService.logoutUser(email);
         return ResponseEntity.status(HttpStatus.OK).body("User logged out.");
     }
 
