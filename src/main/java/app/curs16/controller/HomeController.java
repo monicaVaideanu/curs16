@@ -21,12 +21,6 @@ public class HomeController {
     private UserService userService;
     @Autowired
     private AuthentificationService authService;
-
-    public HomeController(UserService userService, AuthentificationService authService) {
-        this.userService = userService;
-        this.authService = authService;
-    }
-
     @PostMapping("/register")
     public ResponseEntity<String> handleRegister(@Valid @RequestBody User user) {
         if (!userService.addUser(user)) {
